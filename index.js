@@ -16,7 +16,6 @@ app.listen(PORT, () => {
 
 console.log('🔧 Configurando WhatsApp...');
 
-// Caminho correto do Chrome no Render
 const chromePath = '/opt/render/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome';
 
 const puppeteerConfig = {
@@ -30,18 +29,7 @@ const puppeteerConfig = {
     '--no-first-run',
     '--no-zygote',
     '--single-process',
-    '--disable-gpu',
-    '--disable-web-security',
-    '--disable-features=VizDisplayCompositor',
-    '--disable-background-timer-throttling',
-    '--disable-backgrounding-occluded-windows',
-    '--disable-renderer-backgrounding',
-    '--disable-extensions',
-    '--disable-plugins',
-    '--disable-images',
-    '--disable-javascript',
-    '--disable-default-apps',
-    '--disable-sync'
+    '--disable-gpu'
   ]
 };
 
@@ -55,19 +43,17 @@ create({
     console.log(asciiQR);
     console.log('='.repeat(60));
     console.log('📱 Abra WhatsApp → Aparelhos conectados → Conectar aparelho');
-    console.log('📱 Escaneie o código QR acima');
-    console.log('='.repeat(60));
   },
   statusFind: (statusSession) => {
-    console.log('📊 Status da sessão:', statusSession);
+    console.log('📊 Status:', statusSession);
     if (statusSession === 'qrReadSuccess') {
-      console.log('✅ QR Code escaneado com sucesso!');
+      console.log('✅ QR Code escaneado!');
     }
     if (statusSession === 'authenticated') {
       console.log('🔐 WhatsApp autenticado!');
     }
     if (statusSession === 'inChat') {
-      console.log('💬 WhatsApp conectado e pronto para receber mensagens!');
+      console.log('💬 WhatsApp conectado e pronto!');
     }
   },
   puppeteerOptions: puppeteerConfig,
@@ -79,22 +65,84 @@ create({
 })
 .then((clientInstance) => {
   client = clientInstance;
-  console.log('✅ Cliente WhatsApp criado com sucesso!');
-  console.log('🎯 Bot está ativo e funcionando!');
+  console.log('✅ Cliente WhatsApp criado!');
   start(client);
 })
 .catch((error) => {
-  console.error('❌ Erro ao inicializar WhatsApp:', error);
-  console.log('🔄 Tentando novamente em 30 segundos...');
+  console.error('❌ Erro:', error);
   setTimeout(() => {
     process.exit(1);
   }, 30000);
 });
 
 function start(client) {
-  console.log('🎯 Bot ativo e aguardando mensagens!');
-  console.log('📱 Envie uma mensagem para o número conectado para testar');
+  console.log('🎯 Bot ativo!');
   
   client.onMessage(async (message) => {
     if (!message.isGroupMsg) {
-      const
+      const msg = message.body.toLowerCase().trim();
+      const from = message.from;
+      
+      console.log(`📩 Mensagem: "${msg}"`);
+      
+      try {
+        let response = '';
+        
+        if (msg === '/resumo' || msg === 'resumo') {
+          response = `📊 *RESUMO FINANCEIRO*
+
+✅ Pagos: 2
+⏳ Pendentes: 0
+❌ Vencidos: 0
+
+📈 100% das contas em dia!
+
+_Atualizado: ${new Date().toLocaleString('pt-BR')}_`;
+        }
+        
+        else if (msg === '/status' || msg === 'status') {
+          response = `📋 *STATUS DETALHADO*
+
+✅ Conta de Luz - R$ 150,00
+✅ Internet - R$ 100,00
+
+💰 Total: R$ 250,00`;
+        }
+        
+        else if (msg === '/vencimentos' || msg === 'vencimentos') {
+          response = `📅 *VENCIMENTOS*
+
+🔔 Próximos 7 dias: Nenhum
+✅ Todas as contas em dia!
+
+_Verificado: ${new Date().toLocaleString('pt-BR')}_`;
+        }
+        
+        else if (msg === '/help' || msg === 'help' || msg === 'menu') {
+          response = `🤖 *COMANDOS DISPONÍVEIS*
+
+📊 */resumo* - Ver resumo
+📋 */status* - Ver detalhes
+📅 */vencimentos* - Ver vencimentos
+❓ */help* - Este menu
+
+*Como usar:*
+Digite qualquer comando acima`;
+        }
+        
+        else {
+          response = `👋 Olá! Sou seu assistente financeiro.
+
+Digite */help* para ver os comandos.`;
+        }
+        
+        await client.sendText(from, response);
+        console.log('✅ Resposta enviada!');
+        
+      } catch (error) {
+        console.error('❌ Erro ao processar:', error);
+        await client.sendText(from, '❌ Erro no sistema. Tente novamente.');
+      }
+    }
+  });
+}
