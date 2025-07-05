@@ -16,7 +16,7 @@ app.listen(PORT, () => {
 
 console.log('🔧 Configurando WhatsApp...');
 
-// Configuração especial para Render
+// Configuração para Docker/Render
 const puppeteerConfig = {
   headless: true,
   args: [
@@ -29,27 +29,34 @@ const puppeteerConfig = {
     '--single-process',
     '--disable-gpu',
     '--disable-web-security',
-    '--disable-features=VizDisplayCompositor'
+    '--disable-features=VizDisplayCompositor',
+    '--disable-background-timer-throttling',
+    '--disable-backgrounding-occluded-windows',
+    '--disable-renderer-backgrounding'
   ],
-  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/opt/render/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome'
+  executablePath: '/usr/bin/google-chrome-stable'
 };
 
 create({
   session: 'financeiro',
   catchQR: (base64Qr, asciiQR) => {
     console.log('📱 QR CODE - ESCANEIE COM WHATSAPP:');
-    console.log('='.repeat(50));
+    console.log('='.repeat(60));
     console.log(asciiQR);
-    console.log('='.repeat(50));
-    console.log('📱 Use a câmera do WhatsApp para escanear o código acima');
+    console.log('='.repeat(60));
+    console.log('📱 Abra WhatsApp → Aparelhos conectados → Conectar aparelho');
+    console.log('📱 Escaneie o código QR acima');
   },
   statusFind: (statusSession) => {
     console.log('📊 Status da sessão:', statusSession);
     if (statusSession === 'qrReadSuccess') {
-      console.log('✅ WhatsApp conectado com sucesso!');
+      console.log('✅ QR Code escaneado com sucesso!');
     }
     if (statusSession === 'authenticated') {
       console.log('🔐 WhatsApp autenticado!');
+    }
+    if (statusSession === 'inChat') {
+      console.log('💬 WhatsApp conectado e pronto!');
     }
   },
   puppeteerOptions: puppeteerConfig,
@@ -61,26 +68,27 @@ create({
 })
 .then((clientInstance) => {
   client = clientInstance;
-  console.log('✅ Cliente WhatsApp criado!');
+  console.log('✅ Cliente WhatsApp criado com sucesso!');
   start(client);
 })
 .catch((error) => {
   console.error('❌ Erro ao inicializar WhatsApp:', error);
   console.log('🔄 Tentando novamente em 30 segundos...');
   setTimeout(() => {
-    process.exit(1); // Render vai reiniciar automaticamente
+    process.exit(1);
   }, 30000);
 });
 
 function start(client) {
   console.log('🎯 Bot ativo e aguardando mensagens!');
+  console.log('📱 Envie uma mensagem para o número conectado para testar');
   
   client.onMessage(async (message) => {
     if (!message.isGroupMsg) {
       const msg = message.body.toLowerCase().trim();
       const from = message.from;
       
-      console.log(`📩 Mensagem recebida: "${msg}" de ${from}`);
+      console.log(`📩 Nova mensagem: "${msg}" de ${from}`);
       
       try {
         if (msg === '/resumo' || msg === 'resumo') {
@@ -118,4 +126,50 @@ _Atualizado: ${new Date().toLocaleString('pt-BR')}_`;
         }
         
         else if (msg === '/vencimentos' || msg === 'vencimentos') {
-          const vencimentos = `📅 *
+          const vencimentos = `📅 *VENCIMENTOS*
+
+🔔 *PRÓXIMOS 7 DIAS:*
+Nenhum vencimento próximo
+
+✅ Situação: Todas as contas em dia!
+
+_Verificado: ${new Date().toLocaleString('pt-BR')}_`;
+          
+          await client.sendText(from, vencimentos);
+          console.log('✅ Vencimentos enviados!');
+        }
+        
+        else if (msg === '/help' || msg === 'help' || msg === 'menu') {
+          const menu = `🤖 *COMANDOS DISPONÍVEIS*
+
+📊 */resumo* - Ver resumo financeiro
+📋 */status* - Ver todos os itens
+📅 */vencimentos* - Ver vencimentos próximos
+❓ */help* - Ver este menu
+
+*Como usar:*
+Digite qualquer comando acima
+
+*Exemplo:*
+/resumo
+/status
+/vencimentos`;
+          
+          await client.sendText(from, menu);
+          console.log('✅ Menu enviado!');
+        }
+        
+        else {
+          await client.sendText(from, `👋 Olá! Sou seu assistente financeiro.
+
+Digite */help* para ver os comandos disponíveis.`);
+          console.log('✅ Boas-vindas enviadas!');
+        }
+        
+      } catch (error) {
+        console.error('❌ Erro ao processar mensagem:', error);
+        await client.sendText(from, '❌ Erro no sistema. Tente novamente.');
+      }
+    }
+  });
+}
