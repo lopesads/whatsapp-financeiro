@@ -54,10 +54,8 @@ async function startBot() {
     
     const sock = makeWASocket({
       auth: state,
-      printQRInTerminal: false,
-      logger: {
-        level: 'silent'
-      }
+      printQRInTerminal: false
+      // Removemos o logger que estava causando erro
     });
 
     sock.ev.on('connection.update', (update) => {
@@ -70,13 +68,8 @@ async function startBot() {
         console.log('📱 Para ver o QR Code visual');
         console.log('='.repeat(60));
         
-        // QR Code melhorado no terminal
-        qrcode.generate(qr, { 
-          small: false,
-          errorCorrectionLevel: 'M'
-        }, function(qrcode) {
-          console.log(qrcode);
-        });
+        // QR Code no terminal
+        qrcode.generate(qr, { small: false });
         
         console.log('='.repeat(60));
         console.log('📱 COMO ESCANEAR:');
