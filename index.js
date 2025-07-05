@@ -2,35 +2,57 @@ const { create } = require('@wppconnect-team/wppconnect');
 const express = require('express');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 let client;
 
-// Servidor web para Railway
 app.get('/', (req, res) => {
-  res.send('🤖 Bot WhatsApp Financeiro está rodando!');
+  res.send('🤖 Bot WhatsApp Financeiro Online!');
 });
 
 app.listen(PORT, () => {
-  console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`🚀 Servidor rodando na porta ${PORT}`);
 });
 
-// Inicializar WhatsApp
-console.log('🚀 Iniciando bot...');
+console.log('🔧 Configurando WhatsApp...');
+
+// Configuração especial para Render
+const puppeteerConfig = {
+  headless: true,
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-accelerated-2d-canvas',
+    '--no-first-run',
+    '--no-zygote',
+    '--single-process',
+    '--disable-gpu',
+    '--disable-web-security',
+    '--disable-features=VizDisplayCompositor'
+  ],
+  executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || '/opt/render/.cache/puppeteer/chrome/linux-131.0.6778.204/chrome-linux64/chrome'
+};
 
 create({
-  session: 'financeiro-session',
+  session: 'financeiro',
   catchQR: (base64Qr, asciiQR) => {
-    console.log('📱 ESCANEIE O QR CODE ABAIXO:');
+    console.log('📱 QR CODE - ESCANEIE COM WHATSAPP:');
+    console.log('='.repeat(50));
     console.log(asciiQR);
-    console.log('📱 Use a câmera do WhatsApp para escanear');
+    console.log('='.repeat(50));
+    console.log('📱 Use a câmera do WhatsApp para escanear o código acima');
   },
-  statusFind: (statusSession, session) => {
+  statusFind: (statusSession) => {
     console.log('📊 Status da sessão:', statusSession);
     if (statusSession === 'qrReadSuccess') {
       console.log('✅ WhatsApp conectado com sucesso!');
     }
+    if (statusSession === 'authenticated') {
+      console.log('🔐 WhatsApp autenticado!');
+    }
   },
+  puppeteerOptions: puppeteerConfig,
   headless: true,
   devtools: false,
   useChrome: true,
@@ -43,22 +65,24 @@ create({
   start(client);
 })
 .catch((error) => {
-  console.error('❌ Erro ao inicializar:', error);
+  console.error('❌ Erro ao inicializar WhatsApp:', error);
+  console.log('🔄 Tentando novamente em 30 segundos...');
+  setTimeout(() => {
+    process.exit(1); // Render vai reiniciar automaticamente
+  }, 30000);
 });
 
 function start(client) {
   console.log('🎯 Bot ativo e aguardando mensagens!');
   
   client.onMessage(async (message) => {
-    // Só responder mensagens privadas
-    if (message.isGroupMsg === false) {
+    if (!message.isGroupMsg) {
       const msg = message.body.toLowerCase().trim();
       const from = message.from;
       
-      console.log(`📩 Mensagem de ${from}: ${msg}`);
+      console.log(`📩 Mensagem recebida: "${msg}" de ${from}`);
       
       try {
-        // Comando /resumo
         if (msg === '/resumo' || msg === 'resumo') {
           const resumo = `📊 *RESUMO FINANCEIRO*
 
@@ -69,7 +93,7 @@ function start(client) {
 
 📈 *PERCENTUAIS:*
 ✅ 100% Pagos
-⏳ 0% Pendentes  
+⏳ 0% Pendentes
 ❌ 0% Vencidos
 
 _Atualizado: ${new Date().toLocaleString('pt-BR')}_`;
@@ -78,14 +102,13 @@ _Atualizado: ${new Date().toLocaleString('pt-BR')}_`;
           console.log('✅ Resumo enviado!');
         }
         
-        // Comando /status
         else if (msg === '/status' || msg === 'status') {
           const status = `📋 *STATUS DETALHADO*
 
 ✅ Conta de Luz - R$ 150,00
 📅 Vencimento: 15/01/2025
 
-✅ Internet - R$ 100,00  
+✅ Internet - R$ 100,00
 📅 Vencimento: 20/01/2025
 
 💰 *Total: R$ 250,00*`;
@@ -94,55 +117,5 @@ _Atualizado: ${new Date().toLocaleString('pt-BR')}_`;
           console.log('✅ Status enviado!');
         }
         
-        // Comando /vencimentos
         else if (msg === '/vencimentos' || msg === 'vencimentos') {
-          const hoje = new Date();
-          const vencimentos = `📅 *VENCIMENTOS*
-
-🔔 *PRÓXIMOS 7 DIAS:*
-Nenhum vencimento próximo
-
-✅ Situação: Em dia!
-
-_Verificado em: ${hoje.toLocaleString('pt-BR')}_`;
-          
-          await client.sendText(from, vencimentos);
-          console.log('✅ Vencimentos enviados!');
-        }
-        
-        // Comando /help
-        else if (msg === '/help' || msg === 'help' || msg === 'menu') {
-          const menu = `🤖 *COMANDOS DISPONÍVEIS*
-
-📊 */resumo* - Ver resumo financeiro
-📋 */status* - Ver todos os itens  
-📅 */vencimentos* - Ver vencimentos
-❓ */help* - Ver este menu
-
-*Como usar:*
-Digite qualquer comando acima
-
-*Exemplo:*
-/resumo
-/status
-/vencimentos`;
-          
-          await client.sendText(from, menu);
-          console.log('✅ Menu enviado!');
-        }
-        
-        // Primeira mensagem
-        else {
-          await client.sendText(from, `👋 Olá! Sou seu assistente financeiro.
-
-Digite */help* para ver os comandos disponíveis.`);
-          console.log('✅ Boas-vindas enviadas!');
-        }
-        
-      } catch (error) {
-        console.error('❌ Erro ao processar:', error);
-        await client.sendText(from, '❌ Erro no sistema. Tente novamente.');
-      }
-    }
-  });
-}
+          const vencimentos = `📅 *
