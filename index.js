@@ -1,5 +1,6 @@
 const { create } = require('@wppconnect-team/wppconnect');
 const express = require('express');
+const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -16,7 +17,30 @@ app.listen(PORT, () => {
 
 console.log('🔧 Configurando WhatsApp...');
 
-// Configuração para Docker/Render
+// Função para encontrar Chrome
+function findChrome() {
+  const possiblePaths = [
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+    '/opt/google/chrome/chrome',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  ];
+  
+  for (const path of possiblePaths) {
+    if (fs.existsSync(path)) {
+      console.log(`✅ Chrome encontrado em: ${path}`);
+      return path;
+    }
+  }
+  
+  console.log('⚠️ Chrome não encontrado, usando padrão do sistema');
+  return null;
+}
+
+// Configuração dinâmica
+const chromePath = findChrome();
 const puppeteerConfig = {
   headless: true,
   args: [
@@ -33,9 +57,13 @@ const puppeteerConfig = {
     '--disable-background-timer-throttling',
     '--disable-backgrounding-occluded-windows',
     '--disable-renderer-backgrounding'
-  ],
-  executablePath: '/usr/bin/google-chrome-stable'
+  ]
 };
+
+// Só definir executablePath se encontrou Chrome
+if (chromePath) {
+  puppeteerConfig.executablePath = chromePath;
+}
 
 create({
   session: 'financeiro',
@@ -62,7 +90,7 @@ create({
   puppeteerOptions: puppeteerConfig,
   headless: true,
   devtools: false,
-  useChrome: true,
+  useChrome: false, // Deixar false para usar Chromium
   debug: false,
   logQR: true
 })
@@ -73,11 +101,50 @@ create({
 })
 .catch((error) => {
   console.error('❌ Erro ao inicializar WhatsApp:', error);
-  console.log('🔄 Tentando novamente em 30 segundos...');
-  setTimeout(() => {
-    process.exit(1);
-  }, 30000);
+  console.log('🔄 Tentando com configuração alternativa...');
+  
+  // Tentar com configuração mais simples
+  tryAlternativeConfig();
 });
+
+function tryAlternativeConfig() {
+  console.log('🔧 Tentando configuração alternativa...');
+  
+  create({
+    session: 'financeiro-alt',
+    catchQR: (base64Qr, asciiQR) => {
+      console.log('📱 QR CODE - ESCANEIE COM WHATSAPP:');
+      console.log('='.repeat(60));
+      console.log(asciiQR);
+      console.log('='.repeat(60));
+    },
+    statusFind: (statusSession) => {
+      console.log('📊 Status:', statusSession);
+      if (statusSession === 'qrReadSuccess') {
+        console.log('✅ Conectado!');
+      }
+    },
+    puppeteerOptions: {
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    },
+    headless: true,
+    useChrome: false,
+    debug: false
+  })
+  .then((clientInstance) => {
+    client = clientInstance;
+    console.log('✅ Configuração alternativa funcionou!');
+    start(client);
+  })
+  .catch((error) => {
+    console.error('❌ Configuração alternativa também falhou:', error);
+    console.log('🔄 Reiniciando em 60 segundos...');
+    setTimeout(() => {
+      process.exit(1);
+    }, 60000);
+  });
+}
 
 function start(client) {
   console.log('🎯 Bot ativo e aguardando mensagens!');
